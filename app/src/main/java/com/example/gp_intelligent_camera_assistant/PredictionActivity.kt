@@ -2,7 +2,13 @@ package com.example.gp_intelligent_camera_assistant
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
@@ -14,28 +20,48 @@ import android.os.HandlerThread
 import android.view.Surface
 import android.view.TextureView
 import android.widget.Button
+import android.widget.ImageView
 import androidx.core.content.ContextCompat
-import android.content.Intent
+import com.example.gp_intelligent_camera_assistant.ml.LiteModelSsdMobilenetV11Metadata2
+import org.tensorflow.lite.support.common.FileUtil
+import org.tensorflow.lite.support.image.ImageProcessor
+import org.tensorflow.lite.support.image.TensorImage
+import org.tensorflow.lite.support.image.ops.ResizeOp
 
 @Suppress("DEPRECATION")
-class MainActivity : AppCompatActivity() {
+class PredictionActivity : AppCompatActivity() {
+
+    var color = listOf<Int>(
+        Color.BLUE, Color.GREEN, Color.RED, Color.CYAN, Color.GRAY, Color.BLACK,
+        Color.DKGRAY, Color.MAGENTA, Color.YELLOW)
+    val paint = Paint()
+    lateinit var labels:List<String>
     lateinit var cameraDevice: CameraDevice
+    lateinit var imageProcessor: ImageProcessor
+    lateinit var bitmap: Bitmap
+    lateinit var imageView: ImageView
     lateinit var handler: Handler
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
+    lateinit var model:LiteModelSsdMobilenetV11Metadata2
 
-    @SuppressLint("ServiceCast")
+    val threashhold: Float = 0.5f
+
+    @SuppressLint("ServiceCast", "MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        get_permissions()  //ask for required permission at the launch of the App
+        setContentView(R.layout.activity_prediction)
+        labels = FileUtil.loadLabels(this, "labels.txt")
+        imageProcessor = ImageProcessor.Builder().add(ResizeOp(300,300,ResizeOp.ResizeMethod.BILINEAR)).build()  //define the pre-process method
+        model = LiteModelSsdMobilenetV11Metadata2.newInstance(this)  // define the model used
         var handlerThread = HandlerThread("videoThread")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
-        val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
-        textureView = findViewById(R.id.textureView)  // texture view for displaying the camera preview
-        getPredictionButton.setOnClickListener{
-            val intent = Intent(this@MainActivity, PredictionActivity::class.java)
+        imageView = findViewById(R.id.imageViewPrediction)  // image view for displaying the detection result
+        val backButton: Button = findViewById(R.id.backButton1)
+        textureView = findViewById(R.id.textureViewPrediction)  // texture view for displaying the camera preview
+        backButton.setOnClickListener {
+            val intent = Intent(this@PredictionActivity, MainActivity::class.java)
             startActivity(intent)
         }
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
@@ -60,20 +86,56 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
 
+
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-                // todo
+                    get_Detection() // call the prediction function
             }
         }
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    fun get_Detection(){  // function that get the prediction form the camera
+        bitmap = textureView.bitmap!!  // get the bitmap for every frame
+        var image = TensorImage.fromBitmap(bitmap) // load the bitmap using tensoeflow
+        image = imageProcessor.process(image)  // pre-process the picture
 
+        val outputs = model.process(image)
+
+        val location = outputs.locationAsTensorBuffer.floatArray
+        val category = outputs.categoryAsTensorBuffer.floatArray
+        val score = outputs.scoreAsTensorBuffer.floatArray
+
+        var mutable = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(mutable)  // define the canvas to draw the result
+
+        val h = mutable.height
+        val w = mutable.width
+        paint.textSize = h/15f
+        paint.strokeWidth = h/85f
+        var x = 0
+        score.forEachIndexed { index, fl ->
+            x = index
+            x *= 4
+            if(fl > threashhold){
+                paint.setColor(color.get(index))
+                paint.style = Paint.Style.STROKE
+                canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
+                paint.style = Paint.Style.FILL
+                canvas.drawText(labels.get(category.get(index).toInt()) + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
+            }
+        }
+        imageView.setImageBitmap(mutable)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        model.close()
+    }
 
-
+    override fun onPause() {
+        super.onPause()
+        cameraDevice?.close()
+    }
 
     fun get_permissions(){  //ask for permission
         var permissionList = mutableListOf<String>()
