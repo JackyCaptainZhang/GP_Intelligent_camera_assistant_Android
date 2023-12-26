@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
         getPredictionButton.setOnClickListener{
             val intent = Intent(this@MainActivity, PredictionActivity::class.java)
             startActivity(intent)
-        }
+        } // Button to turn on the detection and jump to detection view
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
             override fun onSurfaceTextureAvailable(
                 surface: SurfaceTexture,
@@ -71,9 +71,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
 
     }
-
-
-
 
     fun get_permissions(){  //ask for permission
         var permissionList = mutableListOf<String>()

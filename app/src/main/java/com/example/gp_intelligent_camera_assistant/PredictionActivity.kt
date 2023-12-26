@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.view.Surface
 import android.view.TextureView
 import android.widget.Button
@@ -44,11 +45,13 @@ class PredictionActivity : AppCompatActivity() {
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     lateinit var model:LiteModelSsdMobilenetV11Metadata2
+    lateinit var searchedItem: String  // value that store the requested item that need to be detected
 
     val threashhold: Float = 0.5f
 
     @SuppressLint("ServiceCast", "MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
+        searchedItem = "bottle"  // request the item that need to be detected
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_prediction)
         labels = FileUtil.loadLabels(this, "labels.txt")
@@ -63,7 +66,7 @@ class PredictionActivity : AppCompatActivity() {
         backButton.setOnClickListener {
             val intent = Intent(this@PredictionActivity, MainActivity::class.java)
             startActivity(intent)
-        }
+        }  //Back buttons to return to the main activity
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
             override fun onSurfaceTextureAvailable(
                 surface: SurfaceTexture,
@@ -88,13 +91,21 @@ class PredictionActivity : AppCompatActivity() {
 
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-                    get_Detection() // call the prediction function
+                    get_Detection(searchedItem) // call the prediction function
             }
+
+
         }
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        // Code block that do the automatic jump between activities
+//        Handler(Looper.getMainLooper()).postDelayed({
+//            val intent = Intent(this@PredictionActivity, MainActivity::class.java)
+//            startActivity(intent)
+//            finish()
+//        }, 10000) // jump back to MainActivity after 10 seconds
     }
 
-    fun get_Detection(){  // function that get the prediction form the camera
+    fun get_Detection(itemName: String){  // function that get the prediction form the camera
         bitmap = textureView.bitmap!!  // get the bitmap for every frame
         var image = TensorImage.fromBitmap(bitmap) // load the bitmap using tensoeflow
         image = imageProcessor.process(image)  // pre-process the picture
@@ -116,12 +127,12 @@ class PredictionActivity : AppCompatActivity() {
         score.forEachIndexed { index, fl ->
             x = index
             x *= 4
-            if(fl > threashhold){
+            if(fl > threashhold && itemName == labels.get(category.get(index).toInt())){
                 paint.setColor(color.get(index))
                 paint.style = Paint.Style.STROKE
                 canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
                 paint.style = Paint.Style.FILL
-                canvas.drawText(labels.get(category.get(index).toInt()) + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
+                canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
             }
         }
         imageView.setImageBitmap(mutable)
