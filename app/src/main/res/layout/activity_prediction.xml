@@ -20,17 +20,6 @@
             android:id="@+id/imageViewPrediction"/>
     <!--imageview for drawing the detection result-->
 
-    <Button
-            android:id="@+id/backButton1"
-            android:layout_width="199dp"
-            android:layout_height="82dp"
-            tools:layout_editor_absoluteY="616dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_centerHorizontal="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginBottom="51dp"
-            android:text="Back"/>
 
 
 </RelativeLayout>

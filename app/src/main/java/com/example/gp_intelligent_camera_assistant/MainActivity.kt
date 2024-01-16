@@ -1,43 +1,59 @@
 package com.example.gp_intelligent_camera_assistant
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothSocket
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.view.Surface
 import android.view.TextureView
 import android.widget.Button
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import android.content.Intent
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.UUID
 
-@Suppress("DEPRECATION")
+
 class MainActivity : AppCompatActivity() {
     lateinit var cameraDevice: CameraDevice
     lateinit var handler: Handler
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
+    lateinit var socket: BluetoothSocket
+    private lateinit var mySelectedBluetoothDevice: BluetoothDevice
+    lateinit var MY_UUID : UUID
+    var connected : Boolean = false
+    var itemLocation = FloatArray(4) { 0.0f }
 
-    @SuppressLint("ServiceCast")
+    @SuppressLint("ServiceCast", "MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
+        MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // SSP UUID
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager // Define the bluetooth manager
+        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter // Use bluetooth manager to find the bluetooth aapter hardware
+        val bondedDevices: Set<BluetoothDevice> = bluetoothAdapter!!.bondedDevices // find the bonded device
+
         var handlerThread = HandlerThread("videoThread")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
         val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
         textureView = findViewById(R.id.textureView)  // texture view for displaying the camera preview
-        getPredictionButton.setOnClickListener{
-            val intent = Intent(this@MainActivity, PredictionActivity::class.java)
-            startActivity(intent)
-        }
+
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
             override fun onSurfaceTextureAvailable(
                 surface: SurfaceTexture,
@@ -45,6 +61,10 @@ class MainActivity : AppCompatActivity() {
                 height: Int
             ) {
                 surface.setDefaultBufferSize(3120, 4160)
+                if(GlobalClass.SearchforItem){
+                    itemLocation = intent.getFloatArrayExtra("itemLocation")!!
+                    GlobalClass.SearchforItem = false
+                }
                 openCamera()  //call methods to open the camera
             }
 
@@ -65,14 +85,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+
+        getPredictionButton.setOnClickListener{
+            val intent = Intent(this@MainActivity, PredictionActivity::class.java)
+            startActivity(intent)
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
 
     }
-
-
 
 
     fun get_permissions(){  //ask for permission
@@ -86,6 +109,9 @@ class MainActivity : AppCompatActivity() {
         }
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
             permissionList.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED){
+            permissionList.add(android.Manifest.permission.BLUETOOTH_CONNECT)
         }
 
         if(permissionList.size > 0){

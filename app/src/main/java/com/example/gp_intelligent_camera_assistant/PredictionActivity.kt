@@ -44,6 +44,8 @@ class PredictionActivity : AppCompatActivity() {
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     lateinit var model:LiteModelSsdMobilenetV11Metadata2
+    val itemLocation = FloatArray(4) { 0.0f }
+    var detectedTimes: Int = 0
 
     val threashhold: Float = 0.5f
 
@@ -58,12 +60,7 @@ class PredictionActivity : AppCompatActivity() {
         handlerThread.start()
         handler = Handler(handlerThread.looper)
         imageView = findViewById(R.id.imageViewPrediction)  // image view for displaying the detection result
-        val backButton: Button = findViewById(R.id.backButton1)
         textureView = findViewById(R.id.textureViewPrediction)  // texture view for displaying the camera preview
-        backButton.setOnClickListener {
-            val intent = Intent(this@PredictionActivity, MainActivity::class.java)
-            startActivity(intent)
-        }
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
             override fun onSurfaceTextureAvailable(
                 surface: SurfaceTexture,
@@ -88,13 +85,13 @@ class PredictionActivity : AppCompatActivity() {
 
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-                    get_Detection() // call the prediction function
+                    get_Detection("cup") // call the prediction function
             }
         }
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
     }
 
-    fun get_Detection(){  // function that get the prediction form the camera
+    fun get_Detection(itemName: String){  // function that get the prediction form the camera
         bitmap = textureView.bitmap!!  // get the bitmap for every frame
         var image = TensorImage.fromBitmap(bitmap) // load the bitmap using tensoeflow
         image = imageProcessor.process(image)  // pre-process the picture
@@ -116,13 +113,25 @@ class PredictionActivity : AppCompatActivity() {
         score.forEachIndexed { index, fl ->
             x = index
             x *= 4
-            if(fl > threashhold){
-                paint.setColor(color.get(index))
-                paint.style = Paint.Style.STROKE
-                canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
-                paint.style = Paint.Style.FILL
-                canvas.drawText(labels.get(category.get(index).toInt()) + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
-            }
+            if(fl > threashhold && itemName == labels.get(category.get(index).toInt())){
+                detectedTimes += 1
+                if(detectedTimes >= 10){
+                    paint.setColor(color.get(index))
+                    paint.style = Paint.Style.STROKE
+                    canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
+                    paint.style = Paint.Style.FILL
+                    canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
+                    itemLocation[0] = location.get(x+1)*w  // bottom left
+                    itemLocation[1] = location.get(x)*h  // top left
+                    itemLocation[2] = location.get(x+3)*w // top right
+                    itemLocation[3] = location.get(x+2)*h  // bottom right
+                    detectedTimes = 0
+                    GlobalClass.SearchforItem = true
+                    val intent = Intent(this@PredictionActivity, MainActivity::class.java)
+                    intent.putExtra("itemLocation", itemLocation)
+                    startActivity(intent)
+                }
+                }
         }
         imageView.setImageBitmap(mutable)
     }
@@ -137,35 +146,6 @@ class PredictionActivity : AppCompatActivity() {
         cameraDevice?.close()
     }
 
-    fun get_permissions(){  //ask for permission
-        var permissionList = mutableListOf<String>()
-
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
-            permissionList.add(android.Manifest.permission.CAMERA)
-        }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
-            permissionList.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
-            permissionList.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        if(permissionList.size > 0){
-            requestPermissions(permissionList.toTypedArray(),101)
-        }
-    }
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {  // If permission is not granted, than ask for permission again
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        grantResults.forEach {
-            if(it != PackageManager.PERMISSION_GRANTED){
-                get_permissions()
-            }
-        }
-    }
 
     @SuppressLint("MissingPermission")
     fun openCamera(){

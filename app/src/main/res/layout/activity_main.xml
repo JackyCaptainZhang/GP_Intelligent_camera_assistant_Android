@@ -6,11 +6,14 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <!--textureview for showing the preview-->
     <TextureView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/textureView"/>
-        <!--textureview for showing the preview-->
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/textureView"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true" />
+
     <Button
             android:id="@+id/getPredictionButton"
             android:layout_width="match_parent"
@@ -20,5 +23,16 @@
             android:layout_alignParentBottom="true"
             android:layout_marginBottom="50dp"
             android:layout_marginStart="2dp" />
+
+    <Button
+            android:id="@+id/connectButton"
+            android:layout_width="253dp"
+            android:layout_height="wrap_content"
+            android:text="Connect"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="187dp"
+            android:layout_marginStart="78dp"
+            android:layout_centerHorizontal="true" />
 
 </RelativeLayout>
