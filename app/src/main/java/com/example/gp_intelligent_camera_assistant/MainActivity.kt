@@ -18,7 +18,6 @@ import android.os.HandlerThread
 import android.view.Surface
 import android.view.TextureView
 import android.widget.Button
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import java.io.IOException
@@ -34,20 +33,21 @@ class MainActivity : AppCompatActivity() {
     lateinit var textureView: TextureView
     lateinit var socket: BluetoothSocket
     private lateinit var mySelectedBluetoothDevice: BluetoothDevice
+
     lateinit var MY_UUID : UUID
     var connected : Boolean = false
-    var itemLocation = FloatArray(4) { 0.0f }
+    var cameraOpened : Boolean = false
+    var itemLocation = FloatArray(2) { 0.0f }
+    lateinit var outputStream: OutputStream
+    lateinit var inputStream: InputStream
 
     @SuppressLint("ServiceCast", "MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
-        MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // SSP UUID
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager // Define the bluetooth manager
-        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter // Use bluetooth manager to find the bluetooth aapter hardware
-        val bondedDevices: Set<BluetoothDevice> = bluetoothAdapter!!.bondedDevices // find the bonded device
-
+        connectTOBluetooth()
+        sendBluetoothCommand("Hello bluetooth!")
         var handlerThread = HandlerThread("videoThread")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
@@ -81,7 +81,6 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-                // todo
             }
         }
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -94,9 +93,60 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+    }
+    override fun onPause() {
+        super.onPause()
+        // 保存连接状态到SharedPreferences
+        val sharedPreferences = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putBoolean("isConnected", connected)
+        editor.apply()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 恢复连接状态
+        val sharedPreferences = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+        val isConnected = sharedPreferences.getBoolean("isConnected", false)
+        if (!isConnected) {
+            connectTOBluetooth()
+        }
 
     }
 
+    @SuppressLint("MissingPermission")
+    fun connectTOBluetooth(){
+        MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // SSP UUID
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager // Define the bluetooth manager
+        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter // Use bluetooth manager to find the bluetooth aapter hardware
+        val bondedDevices: Set<BluetoothDevice> = bluetoothAdapter!!.bondedDevices // find the bonded device
+        bondedDevices?.forEach { device ->
+            if (device.address == "98:D3:61:F6:B9:67") { // Find the bonded HC-05 module
+                mySelectedBluetoothDevice = device
+            }
+        }
+        socket = mySelectedBluetoothDevice.createRfcommSocketToServiceRecord(MY_UUID) // define the device to the socket
+        try {
+            socket.connect() // connect to the socket
+            connected = true
+            outputStream = socket.outputStream // the output stream
+            inputStream = socket.inputStream
+
+        } catch (e: IOException){
+        }
+    }
+
+    fun sendBluetoothCommand(sentCMD: String){
+        val dataToSend = sentCMD + "\n" // Must have a "\n" at the end of the message
+        val bytes = dataToSend.toByteArray() // change the message to the Byte for serial transmission
+        outputStream.write(bytes) // write the message to the output stream
+    }
+
+    fun receiveBluetoothCommand(){
+        val buffer = ByteArray(1024)
+        val bytesRead: Int = inputStream.read(buffer)
+        val receivedData = kotlin.String()
+    }
 
     fun get_permissions(){  //ask for permission
         var permissionList = mutableListOf<String>()
@@ -151,6 +201,7 @@ class MainActivity : AppCompatActivity() {
 
                     }  //todo
                 }, handler)
+                cameraOpened = true
             }
 
             override fun onDisconnected(camera: CameraDevice) {

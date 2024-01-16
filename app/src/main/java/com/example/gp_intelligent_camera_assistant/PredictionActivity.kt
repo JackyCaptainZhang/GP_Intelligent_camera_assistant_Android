@@ -44,7 +44,7 @@ class PredictionActivity : AppCompatActivity() {
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     lateinit var model:LiteModelSsdMobilenetV11Metadata2
-    val itemLocation = FloatArray(4) { 0.0f }
+    val itemLocation = FloatArray(2) { 0.0f }
     var detectedTimes: Int = 0
 
     val threashhold: Float = 0.5f
@@ -121,10 +121,8 @@ class PredictionActivity : AppCompatActivity() {
                     canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
                     paint.style = Paint.Style.FILL
                     canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
-                    itemLocation[0] = location.get(x+1)*w  // bottom left
-                    itemLocation[1] = location.get(x)*h  // top left
-                    itemLocation[2] = location.get(x+3)*w // top right
-                    itemLocation[3] = location.get(x+2)*h  // bottom right
+                    itemLocation[0] = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
+                    itemLocation[1] = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
                     detectedTimes = 0
                     GlobalClass.SearchforItem = true
                     val intent = Intent(this@PredictionActivity, MainActivity::class.java)
