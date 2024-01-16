@@ -127,7 +127,8 @@ class PredictionActivity : AppCompatActivity() {
                     GlobalClass.SearchforItem = true
                     val intent = Intent(this@PredictionActivity, MainActivity::class.java)
                     intent.putExtra("itemLocation", itemLocation)
-                    startActivity(intent)
+                    GlobalClass.jumpFROM = true
+                   startActivity(intent)
                 }
                 }
         }
