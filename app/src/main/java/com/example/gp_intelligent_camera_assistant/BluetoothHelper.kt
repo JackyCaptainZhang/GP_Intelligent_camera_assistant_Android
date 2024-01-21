@@ -45,7 +45,7 @@ object BluetoothHelper {
             outputStream = socket.outputStream // the output stream
             inputStream = socket.inputStream
 
-        } catch (e: IOException){
+        } catch (e: Exception){
         }
     }
     fun sendBluetoothCommand(sentCMD: String){

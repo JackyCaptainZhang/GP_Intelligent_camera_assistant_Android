@@ -16,6 +16,7 @@ import android.view.TextureView
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.example.gp_intelligent_camera_assistant.BluetoothHelper.connected
 
 
 class MainActivity : AppCompatActivity() {
@@ -23,8 +24,6 @@ class MainActivity : AppCompatActivity() {
     lateinit var handler: Handler
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
-    var cameraOpened : Boolean = false
-    var itemLocation = FloatArray(2) { 0.0f }
 
 
     @SuppressLint("ServiceCast", "MissingPermission")
@@ -32,9 +31,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
-        BluetoothHelper.init(this)
-        BluetoothHelper.connectTOBluetooth()
-        BluetoothHelper.sendBluetoothCommand("Hello!!!")
+
+        try {
+            BluetoothHelper.init(this)
+            BluetoothHelper.connectTOBluetooth()
+            connected = true
+            BluetoothHelper.sendBluetoothCommand("Hello!!!")
+        }catch (e: Exception){
+        }
+
         var handlerThread = HandlerThread("videoThread")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
@@ -48,10 +53,6 @@ class MainActivity : AppCompatActivity() {
                 height: Int
             ) {
                 surface.setDefaultBufferSize(3120, 4160)
-                if(GlobalClass.SearchforItem){
-                    itemLocation = intent.getFloatArrayExtra("itemLocation")!!
-                    GlobalClass.SearchforItem = false
-                }
                 openCamera()  //call methods to open the camera
             }
 
@@ -72,15 +73,33 @@ class MainActivity : AppCompatActivity() {
         }
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
+
         getPredictionButton.setOnClickListener{
             val intent = Intent(this@MainActivity, PredictionActivity::class.java)
             startActivity(intent)
-            GlobalClass.jumpTO = true
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val sharedPreferences = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putBoolean("isConnected", connected)
+        editor.apply()
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val sharedPreferencesRestore = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+        val isConnected = sharedPreferencesRestore.getBoolean("isConnected", false)
+        if (!isConnected) {
+            BluetoothHelper.connectTOBluetooth()
+        }
     }
 
     fun get_permissions(){  //ask for permission
@@ -136,7 +155,6 @@ class MainActivity : AppCompatActivity() {
 
                     }  //todo
                 }, handler)
-                cameraOpened = true
             }
 
             override fun onDisconnected(camera: CameraDevice) {

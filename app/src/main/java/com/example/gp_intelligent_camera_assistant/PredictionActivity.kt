@@ -3,7 +3,6 @@ package com.example.gp_intelligent_camera_assistant
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -19,9 +18,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.view.Surface
 import android.view.TextureView
-import android.widget.Button
 import android.widget.ImageView
-import androidx.core.content.ContextCompat
 import com.example.gp_intelligent_camera_assistant.ml.LiteModelSsdMobilenetV11Metadata2
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.image.ImageProcessor
@@ -44,7 +41,6 @@ class PredictionActivity : AppCompatActivity() {
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     lateinit var model:LiteModelSsdMobilenetV11Metadata2
-    val itemLocation = FloatArray(2) { 0.0f }
     var detectedTimes: Int = 0
 
     val threashhold: Float = 0.5f
@@ -121,14 +117,19 @@ class PredictionActivity : AppCompatActivity() {
                     canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
                     paint.style = Paint.Style.FILL
                     canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
-                    itemLocation[0] = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
-                    itemLocation[1] = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
+                    paint.setColor(color.get(index))
+                    paint.style = Paint.Style.STROKE
+                    canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
+                    paint.style = Paint.Style.FILL
+                    canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
+                    val centerX = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
+                    val centerY = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
                     detectedTimes = 0
-                    GlobalClass.SearchforItem = true
-                    val intent = Intent(this@PredictionActivity, MainActivity::class.java)
-                    intent.putExtra("itemLocation", itemLocation)
-                    GlobalClass.jumpFROM = true
-                   startActivity(intent)
+                    BluetoothHelper.sendBluetoothCommand("X $centerX !")
+                    BluetoothHelper.sendBluetoothCommand("Y $centerY !")
+//                    val intent = Intent(this@PredictionActivity, MainActivity::class.java)
+//                    intent.putExtra("itemLocation", itemLocation)
+//                   startActivity(intent)
                 }
                 }
         }
@@ -176,7 +177,6 @@ class PredictionActivity : AppCompatActivity() {
 
             }  // todo
         },handler)
-
     }
 
 }
