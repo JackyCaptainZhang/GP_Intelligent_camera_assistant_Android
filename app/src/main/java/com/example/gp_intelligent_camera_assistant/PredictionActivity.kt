@@ -125,8 +125,8 @@ class PredictionActivity : AppCompatActivity() {
                     val centerX = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
                     val centerY = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
                     detectedTimes = 0
-                    BluetoothHelper.sendBluetoothCommand("X $centerX !")
-                    BluetoothHelper.sendBluetoothCommand("Y $centerY !")
+                    BluetoothHelper.sendBluetoothCommand("X $$centerX !")
+                    BluetoothHelper.sendBluetoothCommand("Y $$centerY !")
 //                    val intent = Intent(this@PredictionActivity, MainActivity::class.java)
 //                    intent.putExtra("itemLocation", itemLocation)
 //                   startActivity(intent)
