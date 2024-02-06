@@ -53,12 +53,4 @@ object BluetoothHelper {
         val bytes = dataToSend.toByteArray() // change the message to the Byte for serial transmission
         outputStream.write(bytes) // write the message to the output stream
     }
-
-    fun receiveBluetoothCommand(){
-        val buffer = ByteArray(1024)
-        val bytesRead: Int = inputStream.read(buffer)
-        val receivedData = kotlin.String()
-    }
-
-
 }

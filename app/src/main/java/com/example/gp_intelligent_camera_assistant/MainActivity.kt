@@ -37,6 +37,8 @@ class MainActivity : AppCompatActivity() {
             BluetoothHelper.connectTOBluetooth()
             connected = true
             BluetoothHelper.sendBluetoothCommand("Hello!!!")
+            val bluetoothServiceIntent = Intent(this, BluetoothService::class.java)
+            startService(bluetoothServiceIntent)
         }catch (e: Exception){
         }
 
