@@ -1,8 +1,10 @@
 package com.example.gp_intelligent_camera_assistant
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
@@ -14,6 +16,7 @@ import android.os.HandlerThread
 import android.view.Surface
 import android.view.TextureView
 import android.widget.Button
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.gp_intelligent_camera_assistant.BluetoothHelper.connected
@@ -24,9 +27,11 @@ class MainActivity : AppCompatActivity() {
     lateinit var handler: Handler
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
+    private lateinit var commandReceiver: BroadcastReceiver
 
 
-    @SuppressLint("ServiceCast", "MissingPermission")
+
+    @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -36,7 +41,7 @@ class MainActivity : AppCompatActivity() {
             BluetoothHelper.init(this)
             BluetoothHelper.connectTOBluetooth()
             connected = true
-            BluetoothHelper.sendBluetoothCommand("Hello!!!")
+            //BluetoothHelper.sendBluetoothCommand("Hello!!!")
             val bluetoothServiceIntent = Intent(this, BluetoothService::class.java)
             startService(bluetoothServiceIntent)
         }catch (e: Exception){
@@ -80,10 +85,29 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this@MainActivity, PredictionActivity::class.java)
             startActivity(intent)
         }
+
+        // register, monitor the broadcast and trigger the functions
+        commandReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    "Bluetooth.Find_CMD_RECEIVED" -> action_Find_CMD_RECEIVED()
+                    "Bluetooth.Take_photo_CMD_RECEIVED" -> action_Take_photo_CMD_RECEIVED()
+                    "Bluetooth.Album_CMD_RECEIVED" -> action_Album_CMD_RECEIVED()
+                }
+            }
+        }
+        IntentFilter().apply {
+            addAction("Bluetooth.Find_CMD_RECEIVED")
+            addAction("Bluetooth.Take_photo_CMD_RECEIVED")
+            addAction("Bluetooth.Album_CMD_RECEIVED")
+            registerReceiver(commandReceiver, this)
+        }
+
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        unregisterReceiver(commandReceiver)
     }
 
     override fun onPause() {
@@ -92,7 +116,6 @@ class MainActivity : AppCompatActivity() {
         val editor = sharedPreferences.edit()
         editor.putBoolean("isConnected", connected)
         editor.apply()
-
     }
 
     override fun onResume() {
@@ -138,7 +161,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     @SuppressLint("MissingPermission")
-    fun openCamera(){
+    fun openCamera(){ // Open camera function
 
         cameraManager.openCamera(cameraManager.cameraIdList[0], object: CameraDevice.StateCallback(){
             override fun onOpened(camera: CameraDevice) {
@@ -168,6 +191,18 @@ class MainActivity : AppCompatActivity() {
             }  // todo
         },handler)
 
+    }
+
+    // Functions for different broadcasts
+    private fun action_Find_CMD_RECEIVED() {
+        Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_LONG).show()
+    }
+    private fun action_Take_photo_CMD_RECEIVED() {
+        Toast.makeText(this@MainActivity,"Take photo received!",Toast.LENGTH_LONG).show()
+    }
+
+    private fun action_Album_CMD_RECEIVED() {
+        Toast.makeText(this@MainActivity,"Album received!",Toast.LENGTH_LONG).show()
     }
 
 }
