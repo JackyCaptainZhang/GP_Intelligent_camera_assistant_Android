@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import android.widget.ImageView
@@ -104,52 +105,54 @@ class PredictionActivity : AppCompatActivity() {
     }
 
     fun get_Detection(itemName: String){  // function that get the prediction form the camera
-        bitmap = textureView.bitmap!!  // get the bitmap for every frame
-        var image = TensorImage.fromBitmap(bitmap) // load the bitmap using tensoeflow
-        image = imageProcessor.process(image)  // pre-process the picture
+        try {
+            bitmap = textureView.bitmap!!  // get the bitmap for every frame
+            var image = TensorImage.fromBitmap(bitmap) // load the bitmap using tensoeflow
+            image = imageProcessor.process(image)  // pre-process the picture
 
-        val outputs = model.process(image)
+            val outputs = model.process(image)
 
-        val location = outputs.locationAsTensorBuffer.floatArray
-        val category = outputs.categoryAsTensorBuffer.floatArray
-        val score = outputs.scoreAsTensorBuffer.floatArray
+            val location = outputs.locationAsTensorBuffer.floatArray
+            val category = outputs.categoryAsTensorBuffer.floatArray
+            val score = outputs.scoreAsTensorBuffer.floatArray
 
-        var mutable = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val canvas = Canvas(mutable)  // define the canvas to draw the result
+            var mutable = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            val canvas = Canvas(mutable)  // define the canvas to draw the result
 
-        val h = mutable.height
-        val w = mutable.width
-        paint.textSize = h/15f
-        paint.strokeWidth = h/85f
-        var x = 0
-        score.forEachIndexed { index, fl ->
-            x = index
-            x *= 4
-            if(fl > threashhold && itemName == labels.get(category.get(index).toInt())){
-                detectedTimes += 1
-                if(detectedTimes >= 10){
-                    paint.setColor(color.get(index))
-                    paint.style = Paint.Style.STROKE
-                    canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
-                    paint.style = Paint.Style.FILL
-                    canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
-                    paint.setColor(color.get(index))
-                    paint.style = Paint.Style.STROKE
-                    canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
-                    paint.style = Paint.Style.FILL
-                    canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
-                    val centerX = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
-                    val centerY = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
-                    detectedTimes = 0
-                    BluetoothHelper.sendBluetoothCommand("X $${centerX.toInt()} !")
-                    BluetoothHelper.sendBluetoothCommand("Y $${centerY.toInt()} !")
-//                    val intent = Intent(this@PredictionActivity, MainActivity::class.java)
-//                    intent.putExtra("itemLocation", itemLocation)
-//                   startActivity(intent)
+            val h = mutable.height
+            val w = mutable.width
+            paint.textSize = h/15f
+            paint.strokeWidth = h/85f
+            var x = 0
+            score.forEachIndexed { index, fl ->
+                x = index
+                x *= 4
+                if(fl > threashhold && itemName == labels.get(category.get(index).toInt())){
+                    detectedTimes += 1
+                    if(detectedTimes >= 10){
+                        paint.setColor(color.get(index))
+                        paint.style = Paint.Style.STROKE
+                        canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
+                        paint.style = Paint.Style.FILL
+                        canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
+                        paint.setColor(color.get(index))
+                        paint.style = Paint.Style.STROKE
+                        canvas.drawRect(RectF(location.get(x+1)*w, location.get(x)*h, location.get(x+3)*w, location.get(x+2)*h),paint)
+                        paint.style = Paint.Style.FILL
+                        canvas.drawText(itemName + " " + fl.toString(), location.get(x+1)*w, location.get(x)*h, paint)
+                        val centerX = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
+                        val centerY = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
+                        detectedTimes = 0
+                        BluetoothHelper.sendBluetoothCommand("X $${centerX.toInt()} !")
+                        BluetoothHelper.sendBluetoothCommand("Y $${centerY.toInt()} !")
+                    }
                 }
-                }
+            }
+            imageView.setImageBitmap(mutable)
+        } catch (e: Exception) {
+            Log.e("PredictionActivity", "Model Error", e)
         }
-        imageView.setImageBitmap(mutable)
+
     }
 
     override fun onDestroy() {
