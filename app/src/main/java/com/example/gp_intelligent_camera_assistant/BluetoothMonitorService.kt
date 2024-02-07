@@ -1,13 +1,12 @@
 package com.example.gp_intelligent_camera_assistant
 
 import android.app.Service
-import android.app.Service.START_NOT_STICKY
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import java.io.IOException
 
-class BluetoothService : Service(){
+class BluetoothMonitorService : Service(){
     private lateinit var bluetoothThread: Thread
 
     override fun onBind(intent: Intent): IBinder? {
@@ -15,6 +14,7 @@ class BluetoothService : Service(){
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+
         bluetoothThread = Thread(Runnable {
             try {
                 val stringBuilder = StringBuilder()
@@ -62,10 +62,15 @@ class BluetoothService : Service(){
             sendBroadcast(intent)
             Log.d("Sent", "Album sent.")
         }
+        if (receivedData.contains("Search finish!")) {
+            val intent = Intent("Bluetooth.Search_finish_CMD_RECEIVED")
+            sendBroadcast(intent)
+            Log.d("Sent", "Search finish sent.")
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        bluetoothThread.interrupt() // 确保在服务停止时中断线程
+        bluetoothThread.interrupt()
     }
 }

@@ -19,7 +19,6 @@ import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.example.gp_intelligent_camera_assistant.BluetoothHelper.connected
 
 
 class MainActivity : AppCompatActivity() {
@@ -28,30 +27,27 @@ class MainActivity : AppCompatActivity() {
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     private lateinit var commandReceiver: BroadcastReceiver
-
+    private lateinit var intent: Intent
 
 
     @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Start the bluetooth service
+        val BluetoothConnectionServiceIntent = Intent(this, BluetoothConnectionService::class.java)
+        startService(BluetoothConnectionServiceIntent)
         setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
-
-        try {
-            BluetoothHelper.init(this)
-            BluetoothHelper.connectTOBluetooth()
-            connected = true
-            //BluetoothHelper.sendBluetoothCommand("Hello!!!")
-            val bluetoothServiceIntent = Intent(this, BluetoothService::class.java)
-            startService(bluetoothServiceIntent)
-        }catch (e: Exception){
-        }
 
         var handlerThread = HandlerThread("videoThread")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
         val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
         textureView = findViewById(R.id.textureView)  // texture view for displaying the camera preview
+        getPredictionButton.setOnClickListener{
+            intent = Intent(this@MainActivity, PredictionActivity::class.java)
+            startActivity(intent)
+        }
 
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
             override fun onSurfaceTextureAvailable(
@@ -81,16 +77,13 @@ class MainActivity : AppCompatActivity() {
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
 
-        getPredictionButton.setOnClickListener{
-            val intent = Intent(this@MainActivity, PredictionActivity::class.java)
-            startActivity(intent)
-        }
-
         // register, monitor the broadcast and trigger the functions
         commandReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
-                    "Bluetooth.Find_CMD_RECEIVED" -> action_Find_CMD_RECEIVED()
+                    "Bluetooth.Find_CMD_RECEIVED" -> runOnUiThread {
+                        action_Find_CMD_RECEIVED()
+                    }
                     "Bluetooth.Take_photo_CMD_RECEIVED" -> action_Take_photo_CMD_RECEIVED()
                     "Bluetooth.Album_CMD_RECEIVED" -> action_Album_CMD_RECEIVED()
                 }
@@ -108,23 +101,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(commandReceiver)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        val sharedPreferences = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putBoolean("isConnected", connected)
-        editor.apply()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        val sharedPreferencesRestore = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-        val isConnected = sharedPreferencesRestore.getBoolean("isConnected", false)
-        if (!isConnected) {
-            BluetoothHelper.connectTOBluetooth()
-        }
+        stopService(intent)
     }
 
     fun get_permissions(){  //ask for permission
@@ -196,6 +173,8 @@ class MainActivity : AppCompatActivity() {
     // Functions for different broadcasts
     private fun action_Find_CMD_RECEIVED() {
         Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_LONG).show()
+        val intent = Intent(this@MainActivity, PredictionActivity::class.java)
+        startActivity(intent)
     }
     private fun action_Take_photo_CMD_RECEIVED() {
         Toast.makeText(this@MainActivity,"Take photo received!",Toast.LENGTH_LONG).show()

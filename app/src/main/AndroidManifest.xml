@@ -17,8 +17,12 @@
             android:supportsRtl="true"
             android:theme="@style/Theme.GP_Intelligent_camera_assistant"
 
+
             tools:targetApi="31">
-        <service android:name=".BluetoothService" />
+
+
+        <service android:name=".BluetoothMonitorService" />
+        <service android:name=".BluetoothConnectionService" />
         <activity
                 android:name=".PredictionActivity"
                 android:exported="false" />
@@ -31,6 +35,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+
     </application>
 
 </manifest>

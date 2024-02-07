@@ -1,8 +1,10 @@
 package com.example.gp_intelligent_camera_assistant
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -41,14 +43,28 @@ class PredictionActivity : AppCompatActivity() {
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     lateinit var model:LiteModelSsdMobilenetV11Metadata2
+    private lateinit var backToFirstActivityReceiver: BroadcastReceiver
+
     var detectedTimes: Int = 0
 
     val threashhold: Float = 0.5f
 
-    @SuppressLint("ServiceCast", "MissingInflatedId")
+    @SuppressLint("ServiceCast", "MissingInflatedId", "UnspecifiedRegisterReceiverFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_prediction)
+
+        backToFirstActivityReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val backIntent = Intent(context, MainActivity::class.java)
+                startActivity(backIntent)
+            }
+        }
+        // Register BroadcastReceiver
+        val filter = IntentFilter("Bluetooth.Search_finish_CMD_RECEIVED")
+        registerReceiver(backToFirstActivityReceiver, filter)
+
+
         labels = FileUtil.loadLabels(this, "labels.txt")
         imageProcessor = ImageProcessor.Builder().add(ResizeOp(300,300,ResizeOp.ResizeMethod.BILINEAR)).build()  //define the pre-process method
         model = LiteModelSsdMobilenetV11Metadata2.newInstance(this)  // define the model used
@@ -125,8 +141,8 @@ class PredictionActivity : AppCompatActivity() {
                     val centerX = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
                     val centerY = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
                     detectedTimes = 0
-                    BluetoothHelper.sendBluetoothCommand("X $$centerX !")
-                    BluetoothHelper.sendBluetoothCommand("Y $$centerY !")
+                    BluetoothHelper.sendBluetoothCommand("X $${centerX.toInt()} !")
+                    BluetoothHelper.sendBluetoothCommand("Y $${centerY.toInt()} !")
 //                    val intent = Intent(this@PredictionActivity, MainActivity::class.java)
 //                    intent.putExtra("itemLocation", itemLocation)
 //                   startActivity(intent)
