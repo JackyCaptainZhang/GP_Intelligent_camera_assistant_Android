@@ -27,14 +27,14 @@ class MainActivity : AppCompatActivity() {
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     private lateinit var commandReceiver: BroadcastReceiver
-    private lateinit var intent: Intent
+    private lateinit var BluetoothConnectionServiceIntent: Intent
 
 
     @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Start the bluetooth service
-        val BluetoothConnectionServiceIntent = Intent(this, BluetoothConnectionService::class.java)
+        BluetoothConnectionServiceIntent = Intent(this, BluetoothConnectionService::class.java)
         startService(BluetoothConnectionServiceIntent)
         setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
         textureView = findViewById(R.id.textureView)  // texture view for displaying the camera preview
         getPredictionButton.setOnClickListener{
-            intent = Intent(this@MainActivity, PredictionActivity::class.java)
+            val intent = Intent(this@MainActivity, PredictionActivity::class.java)
             startActivity(intent)
         }
 
@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(commandReceiver)
-        stopService(intent)
+        stopService(BluetoothConnectionServiceIntent)
     }
 
     fun get_permissions(){  //ask for permission
