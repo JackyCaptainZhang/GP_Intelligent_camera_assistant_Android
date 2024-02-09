@@ -1,27 +1,26 @@
 package com.example.gp_intelligent_camera_assistant
 
-import android.app.Service
+import android.app.IntentService
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import java.io.IOException
 
-class BluetoothMonitorService : Service(){
+class BluetoothMonitorService : IntentService("BluetoothMonitorService") {
     private lateinit var bluetoothThread: Thread
 
     override fun onBind(intent: Intent): IBinder? {
         return null
     }
 
-    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+    override fun onHandleIntent(intent: Intent?) {
+        try {
+            val stringBuilder = StringBuilder()
 
-        bluetoothThread = Thread(Runnable {
-            try {
-                val stringBuilder = StringBuilder()
-
-                while (true) {
+            while (true) {
+                if (BluetoothHelper.inputStream != null) {
                     val buffer = ByteArray(1024)
-                    val bytesRead = BluetoothHelper.inputStream.read(buffer)
+                    val bytesRead = BluetoothHelper.inputStream!!.read(buffer)
                     if (bytesRead > 0) {
                         val receivedData = String(buffer, 0, bytesRead)
                         stringBuilder.append(receivedData)
@@ -37,13 +36,13 @@ class BluetoothMonitorService : Service(){
                             stringBuilder.setLength(0)
                         }
                     }
+                } else {
+                    Log.e("BluetoothMonitorService", "Input stream is not initialized")
                 }
-            } catch (e: IOException) {
-                e.printStackTrace()
             }
-        })
-        bluetoothThread.start()
-        return START_NOT_STICKY
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
     }
 
     private fun handleReceivedData(receivedData: String) { // set up the Broadcast for different commands

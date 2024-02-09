@@ -3,6 +3,7 @@ package com.example.gp_intelligent_camera_assistant
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 
 class BluetoothConnectionService : Service() {
 
@@ -23,6 +24,7 @@ class BluetoothConnectionService : Service() {
             val bluetoothMonitorServiceIntent = Intent(this, BluetoothMonitorService::class.java)
             startService(bluetoothMonitorServiceIntent)
         }catch (e: Exception){
+            Log.e("BluetoothConnection", "Connection Service filed", e)
         }
     }
 }

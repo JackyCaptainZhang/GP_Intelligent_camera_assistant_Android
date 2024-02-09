@@ -13,12 +13,14 @@ import android.hardware.camera2.CameraManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import java.io.IOException
 
 
 class MainActivity : AppCompatActivity() {
@@ -33,21 +35,24 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Start the bluetooth service
-        BluetoothConnectionServiceIntent = Intent(this, BluetoothConnectionService::class.java)
-        startService(BluetoothConnectionServiceIntent)
         setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
 
         var handlerThread = HandlerThread("videoThread")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
-        val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
         textureView = findViewById(R.id.textureView)  // texture view for displaying the camera preview
+
+        //Buttons
+        val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
+        val bluetoothConnectButton: Button = findViewById(R.id.connectButton)
+
+        // prediction button action for test purpose
         getPredictionButton.setOnClickListener{
             val intent = Intent(this@MainActivity, PredictionActivity::class.java)
             startActivity(intent)
         }
+        
 
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
             override fun onSurfaceTextureAvailable(
@@ -64,7 +69,6 @@ class MainActivity : AppCompatActivity() {
                 width: Int,
                 height: Int
             ) {
-
             }  // todo
 
             override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
@@ -76,6 +80,13 @@ class MainActivity : AppCompatActivity() {
         }
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
+        // Start the bluetooth service
+        try {
+            BluetoothConnectionServiceIntent = Intent(this, BluetoothConnectionService::class.java)
+            startService(BluetoothConnectionServiceIntent)
+        }catch (e: IOException){
+            Log.e("BluetoothConnection", "Main connecttion failed", e)
+        }
 
         // register, monitor the broadcast and trigger the functions
         commandReceiver = object : BroadcastReceiver() {
@@ -160,11 +171,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onDisconnected(camera: CameraDevice) {
-
+                camera.close()
             }  // todo
 
             override fun onError(camera: CameraDevice, error: Int) {
-
+                camera.close()
             }  // todo
         },handler)
 
