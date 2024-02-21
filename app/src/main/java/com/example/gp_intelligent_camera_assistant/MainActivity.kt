@@ -3,6 +3,7 @@ package com.example.gp_intelligent_camera_assistant
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.BroadcastReceiver
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -10,15 +11,21 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ImageFormat
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
+import android.media.ImageReader
+import android.media.MediaScannerConnection
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
+import android.provider.MediaStore
 import android.speech.RecognizerIntent
 import android.util.Log
 import android.view.Surface
@@ -35,6 +42,8 @@ import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 
 
@@ -43,6 +52,9 @@ class MainActivity : AppCompatActivity() {
     lateinit var cameraDevice: CameraDevice
     lateinit var handler: Handler
     lateinit var cameraManager: CameraManager
+    lateinit var cameraCaptureSession: CameraCaptureSession
+    lateinit var captureRequest: CaptureRequest.Builder
+    lateinit var imageReader: ImageReader
     lateinit var textureView: TextureView
     lateinit var textViewOverlay: TextView
     private lateinit var voiceRecognizer: VoiceRecognizer
@@ -75,6 +87,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
+        // Camera definitions
+        cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
         // label and model definition
         labels = FileUtil.loadLabels(this, "labels.txt")
         imageProcessor = ImageProcessor.Builder().add(ResizeOp(300,300,ResizeOp.ResizeMethod.BILINEAR)).build()  //define the pre-process method
@@ -88,6 +102,35 @@ class MainActivity : AppCompatActivity() {
         textureView = findViewById(R.id.textureView)  // texture view for displaying the camera preview
         imageView = findViewById(R.id.PredictionimageView)  // image view for displaying the detection result
         imageView.visibility = View.GONE
+        // Image reader for capturing photos
+        imageReader = ImageReader.newInstance(4160,3120,ImageFormat.JPEG,1)
+        imageReader.setOnImageAvailableListener({ reader ->
+            val image = reader?.acquireNextImage()
+            image?.let {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, "img_${System.currentTimeMillis()}.jpeg") // 文件名
+                    put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg") // 文件类型
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES) // 保存路径
+                }
+
+                val contentResolver = contentResolver
+                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+                try {
+                    val outputStream = contentResolver.openOutputStream(uri!!)
+                    val buffer = image.planes[0].buffer
+                    val bytes = ByteArray(buffer.remaining())
+                    buffer.get(bytes)
+                    outputStream?.write(bytes)
+                    outputStream?.close()
+                    Toast.makeText(this@MainActivity, "Image saved", Toast.LENGTH_SHORT).show()
+                } catch (e: IOException) {
+                    Log.e("MainActivity", "Error saving image", e)
+                } finally {
+                    image.close()
+                }
+            }
+        }, handler)
         //Buttons definition
         val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
         val bluetoothConnectButton: Button = findViewById(R.id.connectButton)
@@ -98,7 +141,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         bluetoothConnectButton.setOnClickListener {
-            promptSpeechInput()
+            takePhoto()
         }
 
         // Initialise the speech recognition
@@ -110,7 +153,7 @@ class MainActivity : AppCompatActivity() {
                 width: Int,
                 height: Int
             ) {
-                surface.setDefaultBufferSize(3120, 4160)
+                surface.setDefaultBufferSize(4160, 3120)
                 openCamera()  //call methods to open the camera
             }
 
@@ -147,7 +190,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
         // Start the bluetooth service
         try {
@@ -233,11 +275,12 @@ class MainActivity : AppCompatActivity() {
                 cameraDevice = camera // define a camera device
                 var surfaceTexture = textureView.surfaceTexture  // define a surfaceTexture that a Surface will be attached to it
                 var surface = Surface(surfaceTexture)  // define the surface and attach it to surfaceTexture
-                var captureRequest = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)  //define a capture request from camera device
+                captureRequest = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)  //define a capture request from camera device
                 captureRequest.addTarget(surface)  // attach capture request to the surface
 
-                cameraDevice.createCaptureSession(listOf(surface), object: CameraCaptureSession.StateCallback(){
+                cameraDevice.createCaptureSession(listOf(surface, imageReader.surface), object: CameraCaptureSession.StateCallback(){
                     override fun onConfigured(session: CameraCaptureSession) {
+                        cameraCaptureSession = session
                         session.setRepeatingRequest(captureRequest.build(), null, null)
                     }
 
@@ -256,6 +299,12 @@ class MainActivity : AppCompatActivity() {
             }  // todo
         },handler)
 
+    }
+
+    fun takePhoto(){
+        captureRequest = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+        captureRequest.addTarget(imageReader.surface)
+        cameraCaptureSession.capture(captureRequest.build(),null,null)
     }
 
     // Actions when receiving different broadcasts
