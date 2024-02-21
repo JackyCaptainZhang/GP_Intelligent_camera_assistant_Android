@@ -2,6 +2,7 @@ package com.example.gp_intelligent_camera_assistant
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
@@ -48,7 +49,7 @@ import java.io.IOException
 
 
 class MainActivity : AppCompatActivity() {
-    // System inner unadjustable parameters
+    // System inner parameters
     lateinit var cameraDevice: CameraDevice
     lateinit var handler: Handler
     lateinit var cameraManager: CameraManager
@@ -82,7 +83,9 @@ class MainActivity : AppCompatActivity() {
     var itemTOSearch: String = ""
 
 
-    @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag")
+    @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag",
+        "MissingInflatedId"
+    )
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -103,14 +106,16 @@ class MainActivity : AppCompatActivity() {
         imageView = findViewById(R.id.PredictionimageView)  // image view for displaying the detection result
         imageView.visibility = View.GONE
         // Image reader for capturing photos
-        imageReader = ImageReader.newInstance(4160,3120,ImageFormat.JPEG,1)
+        imageReader = ImageReader.newInstance(1920,1080,ImageFormat.JPEG,1)
+        // This defines the saving mechanism by using latest media store api
         imageReader.setOnImageAvailableListener({ reader ->
             val image = reader?.acquireNextImage()
             image?.let {
                 val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, "img_${System.currentTimeMillis()}.jpeg") // 文件名
-                    put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg") // 文件类型
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES) // 保存路径
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, "img_${System.currentTimeMillis()}.jpeg") // File name
+                    put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg") // File type
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DCIM}/Camera") // File path
+
                 }
 
                 val contentResolver = contentResolver
@@ -123,26 +128,32 @@ class MainActivity : AppCompatActivity() {
                     buffer.get(bytes)
                     outputStream?.write(bytes)
                     outputStream?.close()
+                    image.close()
                     Toast.makeText(this@MainActivity, "Image saved", Toast.LENGTH_SHORT).show()
                 } catch (e: IOException) {
                     Log.e("MainActivity", "Error saving image", e)
-                } finally {
-                    image.close()
                 }
             }
         }, handler)
         //Buttons definition
         val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
-        val bluetoothConnectButton: Button = findViewById(R.id.connectButton)
+        val takephotoButton: Button = findViewById(R.id.takephotoButton)
+        val albumButton: Button = findViewById(R.id.albumButton)
 
         // prediction button action for test purpose
         getPredictionButton.setOnClickListener{
             clicked = true
         }
 
-        bluetoothConnectButton.setOnClickListener {
+        takephotoButton.setOnClickListener {
             takePhoto()
         }
+
+        albumButton.setOnClickListener {
+            openGallery()
+        }
+
+
 
         // Initialise the speech recognition
         voiceRecognizer = VoiceRecognizer(this)
@@ -153,7 +164,7 @@ class MainActivity : AppCompatActivity() {
                 width: Int,
                 height: Int
             ) {
-                surface.setDefaultBufferSize(4160, 3120)
+                surface.setDefaultBufferSize(1920, 1080)
                 openCamera()  //call methods to open the camera
             }
 
@@ -174,18 +185,20 @@ class MainActivity : AppCompatActivity() {
                     if(!itemTOSearchReceived && !speechRecognitionActivated){
                         promptSpeechInput()
                     }
-                    if(itemTOSearchReceived){
-                        bluetoothConnectButton.visibility = View.INVISIBLE
-                        getPredictionButton.visibility = View.INVISIBLE
+                    if(itemTOSearchReceived){ // search layout
                         imageView.visibility = View.VISIBLE
+                        takephotoButton.visibility = View.INVISIBLE
+                        albumButton.visibility = View.INVISIBLE
+                        getPredictionButton.visibility = View.INVISIBLE
                         textViewOverlay.text = "You are now finding: $itemTOSearch"
                         get_Detection(itemTOSearch)
                     }
-                }else{
+                }else{ // Main layout
                     itemTOSearchReceived = false
                     speechRecognitionActivated = false
-                    imageView.visibility = View.GONE // Hide the detection view
-                    bluetoothConnectButton.visibility = View.VISIBLE
+                    imageView.visibility = View.GONE
+                    takephotoButton.visibility = View.VISIBLE
+                    albumButton.visibility = View.VISIBLE
                     getPredictionButton.visibility = View.VISIBLE
                 }
             }
@@ -301,7 +314,20 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    fun takePhoto(){
+    fun openGallery() { // Open the album
+        var context: Context = this@MainActivity
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            type = "image/*"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(context, "Not find album!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun takePhoto(){ // Take photo. it will call the saving mechanism defined in 'imageReader' above
         captureRequest = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
         captureRequest.addTarget(imageReader.surface)
         cameraCaptureSession.capture(captureRequest.build(),null,null)
@@ -309,20 +335,22 @@ class MainActivity : AppCompatActivity() {
 
     // Actions when receiving different broadcasts
     private fun action_Find_CMD_RECEIVED() {
-        Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_LONG).show()
+        Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_SHORT).show()
         clicked = true
     }
     private fun action_Take_photo_CMD_RECEIVED() {
-        Toast.makeText(this@MainActivity,"Take photo received!",Toast.LENGTH_LONG).show()
+        takePhoto()
+        Toast.makeText(this@MainActivity,"Take photo received!",Toast.LENGTH_SHORT).show()
     }
 
     private fun action_Album_CMD_RECEIVED() {
-        Toast.makeText(this@MainActivity,"Album received!",Toast.LENGTH_LONG).show()
+        openGallery()
+        Toast.makeText(this@MainActivity,"Album received!",Toast.LENGTH_SHORT).show()
     }
 
     private fun action_search_finished_RECEIVED() {
         clicked = false
-        Toast.makeText(this@MainActivity,"Search finished!",Toast.LENGTH_LONG).show()
+        Toast.makeText(this@MainActivity,"Search finished!",Toast.LENGTH_SHORT).show()
     }
 
     fun get_Detection(itemName: String){  // function that get the prediction form the camera
@@ -390,6 +418,4 @@ class MainActivity : AppCompatActivity() {
             itemTOSearchReceived = true
         }
     }
-
-
 }

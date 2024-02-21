@@ -34,22 +34,34 @@
 
     <Button
             android:id="@+id/getPredictionButton"
-            android:layout_width="match_parent"
+            android:layout_width="303dp"
             android:layout_height="wrap_content"
             android:text="Object Detection"
             android:layout_alignParentStart="true"
             android:layout_alignParentBottom="true"
-            android:layout_marginBottom="50dp"
-            android:layout_marginStart="2dp" />
+            android:layout_marginBottom="41dp"
+            android:layout_marginStart="47dp"
+            android:layout_centerHorizontal="true" />
 
     <Button
-            android:id="@+id/connectButton"
-            android:layout_width="253dp"
-            android:layout_height="wrap_content"
-            android:text="Connect"
+            android:id="@+id/takephotoButton"
+            android:layout_width="164dp"
+            android:layout_height="62dp"
+            android:text="Take photo"
             android:layout_alignParentStart="true"
             android:layout_alignParentBottom="true"
-            android:layout_marginBottom="187dp"
-            android:layout_marginStart="78dp"
+            android:layout_marginBottom="133dp"
+            android:layout_marginStart="6dp"
+            android:layout_centerHorizontal="true" />
+
+    <Button
+            android:id="@+id/albumButton"
+            android:layout_width="165dp"
+            android:layout_height="65dp"
+            android:text="System Album"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="132dp"
+            android:layout_marginStart="240dp"
             android:layout_centerHorizontal="true" />
 </RelativeLayout>
