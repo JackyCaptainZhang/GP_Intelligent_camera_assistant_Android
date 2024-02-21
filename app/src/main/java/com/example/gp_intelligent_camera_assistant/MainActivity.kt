@@ -337,7 +337,7 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == VoiceRecognizer.REQUEST_CODE_SPEECH_INPUT && resultCode == Activity.RESULT_OK && data != null) {
             val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            itemTOSearch = result?.joinToString().toString() // Write the item to search to the global class
+            itemTOSearch = result?.joinToString().toString().lowercase() // Write the item to search to the global class
             itemTOSearchReceived = true
         }
     }
