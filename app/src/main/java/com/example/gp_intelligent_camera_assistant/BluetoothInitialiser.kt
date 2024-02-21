@@ -6,20 +6,19 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
 
 
-object BluetoothHelper {
+@SuppressLint("StaticFieldLeak")
+object BluetoothInitialiser {
     lateinit var socket: BluetoothSocket
     private lateinit var mySelectedBluetoothDevice: BluetoothDevice
     lateinit var MY_UUID : UUID
     var connected : Boolean = false
     var outputStream: OutputStream? = null
     var inputStream: InputStream? = null
-    private var context: Context? = null
     private lateinit var androidBluetoothManager: android.bluetooth.BluetoothManager
     private var bluetoothAdapter: BluetoothAdapter? = null
 
@@ -58,12 +57,5 @@ object BluetoothHelper {
         outputStream?.write(bytes) // write the message to the output stream
     }
 
-    fun isBluetoothConnected(): Boolean {
-        return if (::socket.isInitialized) {
-            socket.isConnected
-        } else {
-            false
-        }
-    }
 
 }

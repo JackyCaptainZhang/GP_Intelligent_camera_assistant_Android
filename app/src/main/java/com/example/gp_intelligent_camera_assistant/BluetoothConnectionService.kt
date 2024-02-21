@@ -18,9 +18,9 @@ class BluetoothConnectionService : Service() {
 
     private fun initBluetoothConnection() {
         try {
-            BluetoothHelper.init(this)
-            BluetoothHelper.connectTOBluetooth()
-            BluetoothHelper.connected = true
+            BluetoothInitialiser.init(this)
+            BluetoothInitialiser.connectTOBluetooth()
+            BluetoothInitialiser.connected = true
             val bluetoothMonitorServiceIntent = Intent(this, BluetoothMonitorService::class.java)
             startService(bluetoothMonitorServiceIntent)
         }catch (e: Exception){

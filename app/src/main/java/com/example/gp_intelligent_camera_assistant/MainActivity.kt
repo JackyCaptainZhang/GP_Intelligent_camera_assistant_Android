@@ -1,6 +1,7 @@
 package com.example.gp_intelligent_camera_assistant
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -18,12 +19,14 @@ import android.hardware.camera2.CameraManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
+import android.speech.RecognizerIntent
 import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -41,15 +44,19 @@ class MainActivity : AppCompatActivity() {
     lateinit var handler: Handler
     lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
+    lateinit var textViewOverlay: TextView
+    private lateinit var voiceRecognizer: VoiceRecognizer
     private lateinit var commandReceiver: BroadcastReceiver
     private lateinit var BluetoothConnectionServiceIntent: Intent
     lateinit var bitmap: Bitmap
     lateinit var model: LiteModelSsdMobilenetV11Metadata2
     lateinit var labels:List<String>
     lateinit var imageProcessor: ImageProcessor
-    var color = listOf<Int>(
-        Color.BLUE, Color.GREEN, Color.RED, Color.CYAN, Color.GRAY, Color.BLACK,
-        Color.DKGRAY, Color.MAGENTA, Color.YELLOW)
+    var color =
+        listOf<Int>(
+        Color.BLUE, Color.GREEN, Color.RED,
+        Color.CYAN, Color.GRAY, Color.BLACK,
+        Color.DKGRAY, Color.MAGENTA, Color.YELLOW) // painting colors
     val paint = Paint()
     lateinit var imageView: ImageView
     var detectedTimes: Int = 0
@@ -57,8 +64,10 @@ class MainActivity : AppCompatActivity() {
     // system adjustable parameters
     var detectedTimes_threashhold = 10 // control the detection FPS
     var clicked: Boolean = false // control the turn on/off of the detection function
+    var itemTOSearchReceived: Boolean = false
+    var speechRecognitionActivated: Boolean = false
     val detection_threashhold: Float = 0.5f // control the detection sensibility
-    var detection_item: String = "cup" // control which item to be detected
+    var itemTOSearch: String = ""
 
 
     @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag")
@@ -75,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         handlerThread.start()
         handler = Handler(handlerThread.looper)
         // UI element definition
+        textViewOverlay = findViewById(R.id.textViewOverlay)
         textureView = findViewById(R.id.textureView)  // texture view for displaying the camera preview
         imageView = findViewById(R.id.PredictionimageView)  // image view for displaying the detection result
         imageView.visibility = View.GONE
@@ -86,7 +96,13 @@ class MainActivity : AppCompatActivity() {
         getPredictionButton.setOnClickListener{
             clicked = true
         }
-        
+
+        bluetoothConnectButton.setOnClickListener {
+            promptSpeechInput()
+        }
+
+        // Initialise the speech recognition
+        voiceRecognizer = VoiceRecognizer(this)
 
         textureView.surfaceTextureListener = object:TextureView.SurfaceTextureListener{
             override fun onSurfaceTextureAvailable(
@@ -109,12 +125,25 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
 
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
-                if (clicked){
-                    imageView.visibility = View.VISIBLE
-                    get_Detection(detection_item)
+            @SuppressLint("SetTextI18n")
+            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) { // Control the behaviour of the detection view and function
+                if (clicked){ // Show the detection view
+                    if(!itemTOSearchReceived && !speechRecognitionActivated){
+                        promptSpeechInput()
+                    }
+                    if(itemTOSearchReceived){
+                        bluetoothConnectButton.visibility = View.INVISIBLE
+                        getPredictionButton.visibility = View.INVISIBLE
+                        imageView.visibility = View.VISIBLE
+                        textViewOverlay.text = "You are now finding: $itemTOSearch"
+                        get_Detection(itemTOSearch)
+                    }
                 }else{
-                    imageView.visibility = View.GONE
+                    itemTOSearchReceived = false
+                    speechRecognitionActivated = false
+                    imageView.visibility = View.GONE // Hide the detection view
+                    bluetoothConnectButton.visibility = View.VISIBLE
+                    getPredictionButton.visibility = View.VISIBLE
                 }
             }
         }
@@ -160,6 +189,7 @@ class MainActivity : AppCompatActivity() {
         stopService(BluetoothConnectionServiceIntent)
     }
 
+    @SuppressLint("InlinedApi")
     fun get_permissions(){  //ask for permission
         var permissionList = mutableListOf<String>()
 
@@ -174,6 +204,9 @@ class MainActivity : AppCompatActivity() {
         }
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED){
             permissionList.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED){
+            permissionList.add(android.Manifest.permission.RECORD_AUDIO)
         }
 
         if(permissionList.size > 0){
@@ -225,7 +258,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    // Functions for different broadcasts
+    // Actions when receiving different broadcasts
     private fun action_Find_CMD_RECEIVED() {
         Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_LONG).show()
         clicked = true
@@ -282,14 +315,30 @@ class MainActivity : AppCompatActivity() {
                         val centerX = ((location.get(x+1)*w) + (location.get(x+3)*w)) / 2  // centerX
                         val centerY = ((location.get(x)*h) + (location.get(x+2)*h)) / 2  // centerY
                         detectedTimes = 0
-                        BluetoothHelper.sendBluetoothCommand("X $${centerX.toInt()} !")
-                        BluetoothHelper.sendBluetoothCommand("Y $${centerY.toInt()} !")
+                        BluetoothInitialiser.sendBluetoothCommand("X $${centerX.toInt()} !")
+                        BluetoothInitialiser.sendBluetoothCommand("Y $${centerY.toInt()} !")
                     }
                 }
             }
             imageView.setImageBitmap(mutable)
         } catch (e: Exception) {
             Log.e("PredictionActivity", "Model Error", e)
+        }
+    }
+
+    // Function for calling google speech recognition API
+    fun promptSpeechInput() {
+        speechRecognitionActivated = true
+        voiceRecognizer.askSpeechInput()
+    }
+
+    // Function that get the speech recognition result
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == VoiceRecognizer.REQUEST_CODE_SPEECH_INPUT && resultCode == Activity.RESULT_OK && data != null) {
+            val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            itemTOSearch = result?.joinToString().toString() // Write the item to search to the global class
+            itemTOSearchReceived = true
         }
     }
 

@@ -18,9 +18,9 @@ class BluetoothMonitorService : IntentService("BluetoothMonitorService") {
             val stringBuilder = StringBuilder()
 
             while (true) {
-                if (BluetoothHelper.inputStream != null) {
+                if (BluetoothInitialiser.inputStream != null) {
                     val buffer = ByteArray(1024)
-                    val bytesRead = BluetoothHelper.inputStream!!.read(buffer)
+                    val bytesRead = BluetoothInitialiser.inputStream!!.read(buffer)
                     if (bytesRead > 0) {
                         val receivedData = String(buffer, 0, bytesRead)
                         stringBuilder.append(receivedData)
