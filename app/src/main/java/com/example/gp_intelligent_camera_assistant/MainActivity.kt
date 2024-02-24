@@ -21,7 +21,6 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.media.ImageReader
-import android.media.MediaScannerConnection
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -43,8 +42,6 @@ import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 
 
@@ -63,7 +60,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var BluetoothConnectionServiceIntent: Intent
     lateinit var bitmap: Bitmap
     lateinit var model: LiteModelSsdMobilenetV11Metadata2
-    lateinit var labels:List<String>
+    lateinit var labels:List<String> // Contains all the item name supported by the model
     lateinit var imageProcessor: ImageProcessor
     var color =
         listOf<Int>(
@@ -75,12 +72,14 @@ class MainActivity : AppCompatActivity() {
     var detectedTimes: Int = 0
 
     // system adjustable parameters
-    var detectedTimes_threashhold = 10 // control the detection FPS
-    var clicked: Boolean = false // control the turn on/off of the detection function
-    var itemTOSearchReceived: Boolean = false
-    var speechRecognitionActivated: Boolean = false
-    val detection_threashhold: Float = 0.5f // control the detection sensibility
-    var itemTOSearch: String = ""
+    var detectedTimes_threashhold = 10 // control the detection FPS, the larger the lower FPS
+    var detectionRequested: Boolean = false // control the turn on/off of the detection function
+    var itemTOSearchReceived: Boolean = false// Check if user has specified item to find or not
+    var speechRecognitionActivated: Boolean = false // Check the voice detection is turned on or not
+    val detection_threashhold: Float = 0.5f // control the detection sensibility, the lower the more sensitive but less accurate
+    var itemTOSearch: String = "" // Name of the item that need to be found
+    var modelSupported : Boolean = false // Check if the item is supported by the model or not
+    var checkModelInput : Boolean = false // Check if the item is checked for the validity
 
 
     @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag",
@@ -139,10 +138,11 @@ class MainActivity : AppCompatActivity() {
         val getPredictionButton: Button = findViewById(R.id.getPredictionButton)
         val takephotoButton: Button = findViewById(R.id.takephotoButton)
         val albumButton: Button = findViewById(R.id.albumButton)
+        val quitPredictionButton: Button = findViewById(R.id.quitPredictionButton)
 
         // prediction button action for test purpose
         getPredictionButton.setOnClickListener{
-            clicked = true
+            detectionRequested = true
         }
 
         takephotoButton.setOnClickListener {
@@ -151,6 +151,10 @@ class MainActivity : AppCompatActivity() {
 
         albumButton.setOnClickListener {
             openGallery()
+        }
+
+        quitPredictionButton.setOnClickListener {
+            detectionRequested = false
         }
 
 
@@ -180,26 +184,48 @@ class MainActivity : AppCompatActivity() {
             }
 
             @SuppressLint("SetTextI18n")
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) { // Control the behaviour of the detection view and function
-                if (clicked){ // Show the detection view
+            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) { // Control the behaviour logic of the detection view and detection function
+                if (detectionRequested){ // Detection view: Triggered when "clicked" is true
+                    // Ask user to give their input if the item to search is not specified
                     if(!itemTOSearchReceived && !speechRecognitionActivated){
-                        promptSpeechInput()
+                        promptSpeechInput() // Trigger the google speech API
                     }
-                    if(itemTOSearchReceived){ // search layout
-                        imageView.visibility = View.VISIBLE
-                        takephotoButton.visibility = View.INVISIBLE
-                        albumButton.visibility = View.INVISIBLE
-                        getPredictionButton.visibility = View.INVISIBLE
-                        textViewOverlay.text = "You are now finding: $itemTOSearch"
-                        get_Detection(itemTOSearch)
+                    // Only triggered after user specify the item to search
+                    if(itemTOSearchReceived){
+                        // Check the user input is supported by the model or not
+                        if(!checkModelInput){
+                            modelSupported  = labels.contains(itemTOSearch)
+                            checkModelInput = true
+                        }
+                        // Only trigger the detection function when user input is supported by the model
+                        if(modelSupported){ // search layout
+                            imageView.visibility = View.VISIBLE
+                            takephotoButton.visibility = View.INVISIBLE
+                            albumButton.visibility = View.INVISIBLE
+                            getPredictionButton.visibility = View.INVISIBLE
+                            quitPredictionButton.visibility = View.VISIBLE
+                            textViewOverlay.text = "You are now finding: $itemTOSearch"
+                            get_Detection(itemTOSearch)
+                        }
+                        // Give user notification if user input is not supported
+                        if (!modelSupported){
+                            checkModelInput = false
+                            itemTOSearchReceived = false
+                            speechRecognitionActivated = false
+                            detectionRequested = false
+                            Toast.makeText(this@MainActivity, "Item not supported by the model!", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                }else{ // Main layout
+                }else{ // Main camera view: Triggered when "clicked" is false
                     itemTOSearchReceived = false
                     speechRecognitionActivated = false
+                    checkModelInput = false
                     imageView.visibility = View.GONE
+                    textViewOverlay.text = ""
                     takephotoButton.visibility = View.VISIBLE
                     albumButton.visibility = View.VISIBLE
                     getPredictionButton.visibility = View.VISIBLE
+                    quitPredictionButton.visibility = View.INVISIBLE
                 }
             }
         }
@@ -209,10 +235,10 @@ class MainActivity : AppCompatActivity() {
             BluetoothConnectionServiceIntent = Intent(this, BluetoothConnectionService::class.java)
             startService(BluetoothConnectionServiceIntent)
         }catch (e: IOException){
-            Log.e("BluetoothConnection", "Main connecttion failed", e)
+            Log.e("BluetoothConnection", "Main connection failed", e)
         }
 
-        // register, monitor the broadcast and trigger the functions
+        // register and monitor the broadcast and trigger the corresponding functions
         commandReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
@@ -245,7 +271,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     @SuppressLint("InlinedApi")
-    fun get_permissions(){  //ask for permission
+    fun get_permissions(){  // Add needed permissions to the list for check
         var permissionList = mutableListOf<String>()
 
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
@@ -265,14 +291,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         if(permissionList.size > 0){
-            requestPermissions(permissionList.toTypedArray(),101)
+            requestPermissions(permissionList.toTypedArray(),101) // Ask the user assent for all the permissions in the list
         }
     }
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
-    ) {  // If permission is not granted, than ask for permission again
+    ) {
+        // If permission is not granted, than ask for permission again
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         grantResults.forEach {
             if(it != PackageManager.PERMISSION_GRANTED){
@@ -336,7 +363,7 @@ class MainActivity : AppCompatActivity() {
     // Actions when receiving different broadcasts
     private fun action_Find_CMD_RECEIVED() {
         Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_SHORT).show()
-        clicked = true
+        detectionRequested = true
     }
     private fun action_Take_photo_CMD_RECEIVED() {
         takePhoto()
@@ -349,7 +376,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun action_search_finished_RECEIVED() {
-        clicked = false
+        detectionRequested = false
         Toast.makeText(this@MainActivity,"Search finished!",Toast.LENGTH_SHORT).show()
     }
 
@@ -414,7 +441,7 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == VoiceRecognizer.REQUEST_CODE_SPEECH_INPUT && resultCode == Activity.RESULT_OK && data != null) {
             val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            itemTOSearch = result?.joinToString().toString().lowercase() // Write the item to search to the global class
+            itemTOSearch = result?.joinToString().toString().lowercase() // Convert to the lowercase
             itemTOSearchReceived = true
         }
     }
