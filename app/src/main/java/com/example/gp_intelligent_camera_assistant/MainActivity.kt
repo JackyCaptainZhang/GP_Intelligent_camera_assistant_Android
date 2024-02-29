@@ -441,7 +441,7 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == VoiceRecognizer.REQUEST_CODE_SPEECH_INPUT && resultCode == Activity.RESULT_OK && data != null) {
             val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            itemTOSearch = result?.joinToString().toString().lowercase() // Convert to the lowercase
+            itemTOSearch = result?.get(0)?.lowercase() ?: ""  // Convert to the lowercase
             itemTOSearchReceived = true
         }
     }
