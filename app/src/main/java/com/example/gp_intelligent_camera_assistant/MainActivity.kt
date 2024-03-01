@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
     var detectedTimes: Int = 0
 
     // system adjustable parameters
-    var detectedTimes_threashhold = 10 // control the detection FPS, the larger the lower FPS
+    var detectedTimes_threashhold = 5 // control the detection FPS, the larger the lower FPS
     var detectionRequested: Boolean = false // control the turn on/off of the detection function
     var itemTOSearchReceived: Boolean = false// Check if user has specified item to find or not
     var speechRecognitionActivated: Boolean = false // Check the voice detection is turned on or not
@@ -441,7 +441,7 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == VoiceRecognizer.REQUEST_CODE_SPEECH_INPUT && resultCode == Activity.RESULT_OK && data != null) {
             val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            itemTOSearch = result?.get(0)?.lowercase() ?: ""  // Convert to the lowercase
+            itemTOSearch = result?.get(0)?.lowercase() ?: ""  // Get the first output and convert strings to the lowercase to match the model label
             itemTOSearchReceived = true
         }
     }
