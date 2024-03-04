@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
     var detectedTimes: Int = 0
 
     // system adjustable parameters
-    var detectedTimes_threashhold = 5 // control the detection FPS, the larger the lower FPS
+    var detectedTimes_threashhold = 3 // control the detection FPS, the larger the lower FPS
     var detectionRequested: Boolean = false // control the turn on/off of the detection function
     var itemTOSearchReceived: Boolean = false// Check if user has specified item to find or not
     var speechRecognitionActivated: Boolean = false // Check the voice detection is turned on or not
