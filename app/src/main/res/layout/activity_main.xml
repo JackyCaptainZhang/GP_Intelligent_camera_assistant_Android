@@ -13,6 +13,10 @@
             android:layout_alignParentStart="true"
             android:layout_alignParentTop="true" />
 
+    <com.example.gp_intelligent_camera_assistant.CrosshairView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
     <ImageView
             android:id="@+id/PredictionimageView"
             android:layout_width="match_parent"
@@ -20,6 +24,10 @@
             android:background="#000"
             android:layout_alignParentStart="true"
             android:layout_alignParentTop="true" />
+
+    <com.example.gp_intelligent_camera_assistant.CrosshairView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
 
     <!-- TextView overlay for displaying text on top of the ImageView -->
     <TextView

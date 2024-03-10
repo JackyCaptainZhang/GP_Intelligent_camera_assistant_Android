@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
     var detectedTimes: Int = 0
 
     // system adjustable parameters
-    var detectedTimes_threashhold = 5 // control the detection FPS, the larger the lower FPS
+    var detectedTimes_threashhold = 2 // control the detection FPS, the larger the lower FPS
     var detectionRequested: Boolean = false // control the turn on/off of the detection function
     var itemTOSearchReceived: Boolean = false// Check if user has specified item to find or not
     var speechRecognitionActivated: Boolean = false // Check the voice detection is turned on or not
@@ -362,17 +362,17 @@ class MainActivity : AppCompatActivity() {
 
     // Actions when receiving different broadcasts
     private fun action_Find_CMD_RECEIVED() {
-        Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_SHORT).show()
+        //Toast.makeText(this@MainActivity,"Find received!",Toast.LENGTH_SHORT).show()
         detectionRequested = true
     }
     private fun action_Take_photo_CMD_RECEIVED() {
         takePhoto()
-        Toast.makeText(this@MainActivity,"Take photo received!",Toast.LENGTH_SHORT).show()
+        //Toast.makeText(this@MainActivity,"Take photo received!",Toast.LENGTH_SHORT).show()
     }
 
     private fun action_Album_CMD_RECEIVED() {
         openGallery()
-        Toast.makeText(this@MainActivity,"Album received!",Toast.LENGTH_SHORT).show()
+        //Toast.makeText(this@MainActivity,"Album received!",Toast.LENGTH_SHORT).show()
     }
 
     private fun action_search_finished_RECEIVED() {
