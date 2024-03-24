@@ -80,6 +80,8 @@ class MainActivity : AppCompatActivity() {
     var itemTOSearch: String = "" // Name of the item that need to be found
     var modelSupported : Boolean = false // Check if the item is supported by the model or not
     var checkModelInput : Boolean = false // Check if the item is checked for the validity
+    private var isCameraInitialized = false
+
 
 
     @SuppressLint("ServiceCast", "MissingPermission", "UnspecifiedRegisterReceiverFlag",
@@ -87,8 +89,8 @@ class MainActivity : AppCompatActivity() {
     )
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
         get_permissions()  //ask for required permission at the launch of the App
+        setContentView(R.layout.activity_main)
         // Camera definitions
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
         // label and model definition
@@ -170,6 +172,7 @@ class MainActivity : AppCompatActivity() {
             ) {
                 surface.setDefaultBufferSize(1920, 1080)
                 openCamera()  //call methods to open the camera
+                isCameraInitialized = true
             }
 
             override fun onSurfaceTextureSizeChanged(
@@ -188,6 +191,7 @@ class MainActivity : AppCompatActivity() {
                 if (detectionRequested){ // Detection view: Triggered when "clicked" is true
                     // Ask user to give their input if the item to search is not specified
                     if(!itemTOSearchReceived && !speechRecognitionActivated){
+                        BluetoothInitialiser.sendBluetoothCommand("Start saying!")
                         promptSpeechInput() // Trigger the google speech API
                     }
                     // Only triggered after user specify the item to search
@@ -266,8 +270,14 @@ class MainActivity : AppCompatActivity() {
         model.close()
         bitmap.recycle()
         cameraDevice.close()
+        isCameraInitialized = false
         unregisterReceiver(commandReceiver)
         stopService(BluetoothConnectionServiceIntent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+
     }
 
     @SuppressLint("InlinedApi")
@@ -442,6 +452,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == VoiceRecognizer.REQUEST_CODE_SPEECH_INPUT && resultCode == Activity.RESULT_OK && data != null) {
             val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             itemTOSearch = result?.get(0)?.lowercase() ?: ""  // Get the first output and convert strings to the lowercase to match the model label
+            BluetoothInitialiser.sendBluetoothCommand("Start Finding!") // Tell the gimbal that search is ready
             itemTOSearchReceived = true
         }
     }
